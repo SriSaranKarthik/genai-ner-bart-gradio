@@ -86,6 +86,7 @@ demo.launch()
 
 ```
 ### OUTPUT:
-![alt text](image-1.png)
+![image](https://github.com/user-attachments/assets/ffed2e29-c4f2-4600-a499-58f60e594f2b)
+
 ### RESULT:
 Thus, the developed an NER prototype application with user interaction and evaluation features, using a fine-tuned BART model deployed through the Gradio framework.
