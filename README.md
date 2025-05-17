@@ -18,23 +18,22 @@ Build a Gradio interface that takes user input, passes it to the NER model via t
 
 ### PROGRAM:
 ```py
+# Required imports
 import os
 import io
-from IPython.display import Image, display, HTML
-from PIL import Image
-import base64 
-from dotenv import load_dotenv, find_dotenv
-import requests
 import json
+import requests
+from PIL import Image
+from dotenv import load_dotenv, find_dotenv
+from IPython.display import Image, display, HTML
 import gradio as gr
 
-# Load environment variables
-_ = load_dotenv(find_dotenv())  # Read local .env file
+# Load API keys from .env file
+_ = load_dotenv(find_dotenv())  # read local .env file
 hf_api_key = os.environ['HF_API_KEY']
-API_URL = os.environ['HF_API_SUMMARY_BASE']  # Ensure the API URL is correct
 
-# Helper function to send API requests
-def get_completion(inputs, parameters=None, ENDPOINT_URL=API_URL): 
+# Helper function for calling Hugging Face inference API
+def get_completion(inputs, parameters=None, ENDPOINT_URL=os.environ['HF_API_SUMMARY_BASE']): 
     headers = {
         "Authorization": f"Bearer {hf_api_key}",
         "Content-Type": "application/json"
@@ -45,28 +44,70 @@ def get_completion(inputs, parameters=None, ENDPOINT_URL=API_URL):
     response = requests.post(ENDPOINT_URL, headers=headers, data=json.dumps(data))
     return json.loads(response.content.decode("utf-8"))
 
-# Function to merge subword tokens (e.g., "San" and "Francisco" into "San Francisco")
+# -------------------------------
+# TEXT SUMMARIZATION SECTION
+# -------------------------------
+
+# Sample input text
+text = (
+    '''Founded in 2001, Saveetha Engineering College is a co-educational institution located in Thandalam, Chennai, just 8 km (5.0 mi) from the bustling township of Poonamallee. 
+    The campus overlooks the scenic Chembarambakkam Lake and sits along the Chennai–Bangalore National Highway (NH4). Affiliated with Anna University, the largest technical university in India, 
+    the college is approved by the AICTE and recognized by the Government of Tamil Nadu. It was established by the Saveetha Medical and Educational Trust, a registered charitable society committed to academic excellence. 
+    In recognition of its academic growth, the college was granted autonomous status by the University Grants Commission (UGC). 
+    In 2024, Saveetha Engineering College was ranked in the 201–300 band among engineering colleges in India by the National Institutional Ranking Framework (NIRF), 
+    reinforcing its position as one of the emerging hubs of technical education in the country.'''
+)
+
+# Run summarization
+get_completion(text)
+
+# Define summarization function
+def summarize(input):
+    output = get_completion(input)
+    return output[0]['summary_text']
+
+# Gradio interface for summarization
+gr.close_all()
+demo = gr.Interface(
+    fn=summarize,
+    inputs=[gr.Textbox(label="Text to summarize", lines=6)],
+    outputs=[gr.Textbox(label="Result", lines=3)],
+    title="Text summarization with distilbart-cnn",
+    description="Summarize any text using the `shleifer/distilbart-cnn-12-6` model under the hood!"
+)
+demo.launch(share=True)
+
+# -------------------------------
+# NAMED ENTITY RECOGNITION (NER)
+# -------------------------------
+
+# Update endpoint for NER
+API_URL = os.environ['HF_API_NER_BASE']
+
+# Sample NER call
+text = "My name is Srisaran Karthik and I study at Saveetha Engineering College"
+get_completion(text, parameters=None, ENDPOINT_URL=API_URL)
+
+# Function to merge I-XXX tokens into full entities
 def merge_tokens(tokens):
     merged_tokens = []
     for token in tokens:
         if merged_tokens and token['entity'].startswith('I-') and merged_tokens[-1]['entity'].endswith(token['entity'][2:]):
-            # Merge the token if it's part of the same entity
             last_token = merged_tokens[-1]
             last_token['word'] += token['word'].replace('##', '')
             last_token['end'] = token['end']
             last_token['score'] = (last_token['score'] + token['score']) / 2
         else:
-            # Add new token to the list
             merged_tokens.append(token)
     return merged_tokens
 
-# NER function to process input and call the API
+# Final NER function
 def ner(input):
     output = get_completion(input, parameters=None, ENDPOINT_URL=API_URL)
     merged_tokens = merge_tokens(output)
     return {"text": input, "entities": merged_tokens}
 
-# Initialize Gradio interface
+# Gradio interface for NER
 gr.close_all()
 demo = gr.Interface(
     fn=ner,
@@ -76,17 +117,18 @@ demo = gr.Interface(
     description="Find entities using the `dslim/bert-base-NER` model under the hood!",
     allow_flagging="never",
     examples=[
-        "My name is Andrew, I'm building DeeplearningAI and I live in California",
-        "My name is Poli, I live in Vienna and work at HuggingFace"
+        "My name is K. Srisaran Karthik and I study Artificial Intelligence and Data Science at Saveetha Engineering College",
+        "Saveetha Engineering College is located in Thandalam, Chennai near Chembarambakkam Lake"
     ]
 )
-
-# Launch the Gradio interface
 demo.launch()
 
+# Optional: Close all previous Gradio apps
+gr.close_all()
 ```
 ### OUTPUT:
-![image](https://github.com/user-attachments/assets/ffed2e29-c4f2-4600-a499-58f60e594f2b)
+
+![EXP(GenAI) 5 SS](https://github.com/user-attachments/assets/c86e8927-2c8c-4a4a-9bb3-7974eeb9a123)
 
 ### RESULT:
 Thus, the developed an NER prototype application with user interaction and evaluation features, using a fine-tuned BART model deployed through the Gradio framework.
